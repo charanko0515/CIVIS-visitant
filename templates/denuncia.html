@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% block titulo %}Mapa de Ocorrências{% endblock %}
+{% block breadcrumb %}Mapa de Ocorrências{% endblock %}
+{% block main_class %}block{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    .input-field {
+        width: 100%; padding: 9px 13px;
+        border: 1.5px solid #dde3f0; border-radius: 10px;
+        font-size: 13px; color: #1e2d5a; outline: none;
+        transition: border-color .2s, box-shadow .2s;
+        background: #f8fafc;
+    }
+    .input-field::placeholder { color: #b0bcd4; }
+    textarea.input-field { resize: none; }
+
+    /* Mapa */
+    #mapa { height: 100%; width: 100%; border-radius: 16px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="w-full max-w-7xl mx-auto px-4 py-8">
+
+    <!-- Cabeçalho -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-extrabold" style="color:#0b438a;">Mapa de Ocorrências</h1>
+        <p class="text-sm text-gray-400 mt-1">Visualização dos registros existentes — envio de novas denúncias e uploads desabilitado</p>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-6" style="align-items:stretch;">
+
+        <!-- ═══ COLUNA ESQUERDA: Painel bloqueado para novos registros ═══ -->
+        <div class="w-full lg:w-5/12 flex flex-col">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 h-full">
+
+                <div class="flex items-start gap-3 p-4 rounded-xl border" style="background:#fffbeb; border-color:#fde68a;">
+                    <i class="fa-solid fa-lock text-amber-600 mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-bold text-amber-800">Registro bloqueado (modo visualização)</p>
+                        <p class="text-xs text-amber-700 mt-0.5">
+                            As funções de criar denúncias e fazer upload de arquivos/fotos estão desabilitadas. Você pode consultar as ocorrências no mapa e buscar endereços para inspeção.
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold mb-1.5 uppercase tracking-wide" style="color:#6b7280;">Buscar endereço no mapa</label>
+                    <div class="relative">
+                        <div class="flex gap-2">
+                            <div class="relative flex-1">
+                                <i class="fa-solid fa-location-dot absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
+                                <input type="text" id="busca-endereco" class="input-field pl-8" placeholder="Rua das Flores, Teresina…" autocomplete="off">
+                            </div>
+                            <button type="button" onclick="buscarEndereco()"
+                                class="px-3 py-2 rounded-xl font-bold text-white text-sm flex items-center gap-1.5 hover:opacity-90 transition flex-shrink-0"
+                                style="background:#0b438a;">
+                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                            </button>
+                        </div>
+                        <ul id="autocomplete-lista" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden" style="max-height:200px;overflow-y:auto;"></ul>
+                    </div>
+                </div>
+
+                <button type="button" onclick="usarGPS()"
+                    class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition"
+                    style="border:1.5px solid #0b438a; color:#0b438a;">
+                    <i class="fa-solid fa-location-crosshairs"></i> Centralizar na minha localização
+                </button>
+
+                <div id="status-gps" class="text-xs font-medium text-center bg-blue-50 text-blue-700 p-2.5 rounded-xl border border-blue-200">
+                    🗺️ {{ ocorrencias|length }} ocorrência(s) exibida(s) no mapa
+                </div>
+
+                <fieldset disabled class="opacity-50 pointer-events-none flex flex-col gap-3 mt-1">
+                    <div>
+                        <label class="block text-xs font-bold mb-1 uppercase tracking-wide text-gray-400">Título (desabilitado)</label>
+                        <input type="text" class="input-field" placeholder="Bloqueado nesta versão">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1 uppercase tracking-wide text-gray-400">Foto da ocorrência (desabilitado)</label>
+                        <input type="file" class="input-field" disabled>
+                    </div>
+                    <button type="button" disabled
+                        class="w-full text-white font-bold py-2.5 rounded-xl text-sm bg-gray-400 cursor-not-allowed">
+                        Envio desabilitado
+                    </button>
+                </fieldset>
+
+            </div>
+        </div>
+
+        <!-- ═══ COLUNA DIREITA: Mockup tablet horizontal com mapa ═══ -->
+        <div class="w-full lg:w-7/12 hidden lg:flex flex-col items-center justify-center">
+
+            <div style="
+                position: relative;
+                width: min(660px, 95%);
+                height: min(480px, 72vh);
+                background: linear-gradient(145deg, #2c2c3e, #1a1a2e);
+                border-radius: 28px;
+                padding: 16px 18px;
+                box-shadow: 0 0 0 2px #3a3a5c, 0 40px 90px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+            ">
+                <div style="position:absolute;top:7px;left:50%;transform:translateX(-50%);width:7px;height:7px;background:#3a3a5c;border-radius:50%;box-shadow:inset 0 0 0 1.5px #555;"></div>
+                <div style="position:absolute;right:-3px;top:90px;width:3px;height:40px;background:#3a3a5c;border-radius:0 2px 2px 0;"></div>
+                <div style="position:absolute;left:-3px;top:80px;width:3px;height:28px;background:#3a3a5c;border-radius:2px 0 0 2px;"></div>
+                <div style="position:absolute;left:-3px;top:118px;width:3px;height:28px;background:#3a3a5c;border-radius:2px 0 0 2px;"></div>
+
+                <div style="width:100%;height:100%;background:#f0f4ff;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;">
+
+                    <div style="background:#0b438a;padding:7px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <i class="fa-solid fa-location-dot" style="color:#fff;font-size:13px;"></i>
+                            <span style="color:#fff;font-size:13px;font-weight:800;letter-spacing:1.5px;">CIVIS</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:3px;">
+                            <span id="relogio" style="color:#fff;font-size:11px;font-weight:700;margin-right:8px;">00:00</span>
+                            <i class="fa-solid fa-signal" style="color:#fff;font-size:10px;"></i>
+                            <i class="fa-solid fa-wifi" style="color:rgba(255,255,255,.8);font-size:10px;margin-left:4px;"></i>
+                            <i class="fa-solid fa-battery-three-quarters" style="color:#fff;font-size:10px;margin-left:4px;"></i>
+                        </div>
+                    </div>
+
+                    <div style="background:#fff;padding:8px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e8eef8;flex-shrink:0;">
+                        <i class="fa-solid fa-bars" style="color:#0b438a;font-size:13px;"></i>
+                        <span style="flex-grow:1;font-size:12px;color:#a0aec0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="preview-endereco">Explore as ocorrências registradas no mapa…</span>
+                        <i class="fa-solid fa-magnifying-glass" style="color:#0b438a;font-size:12px;"></i>
+                    </div>
+
+                    <div id="mapa" style="flex-grow:1;"></div>
+
+                </div>
+            </div>
+
+            <p class="text-xs text-gray-400 mt-4 text-center">
+                <i class="fa-solid fa-eye mr-1"></i> Clique nos marcadores para ver a categoria da ocorrência
+            </p>
+        </div>
+
+        <!-- Mapa mobile -->
+        <div class="w-full lg:hidden rounded-2xl overflow-hidden border border-gray-200" style="height:260px;">
+            <div id="mapa-mobile"></div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function atualizarRelogio() {
+    const a = new Date();
+    document.getElementById('relogio').innerText =
+        String(a.getHours()).padStart(2,'0') + ':' + String(a.getMinutes()).padStart(2,'0');
+}
+atualizarRelogio();
+setInterval(atualizarRelogio, 1000);
+
+const limitsBrasil = L.latLngBounds(L.latLng(-33.75,-73.99), L.latLng(5.27,-28.84));
+const opsMapa = { zoomControl:false, attributionControl:false, maxBounds:limitsBrasil, maxBoundsViscosity:1.0, minZoom:4 };
+
+const mapa = L.map('mapa', opsMapa).setView([-5.0892,-42.8019], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapa);
+
+let mapaMobile = null;
+const elMobile = document.getElementById('mapa-mobile');
+if (elMobile) {
+    elMobile.style.height = '260px';
+    mapaMobile = L.map('mapa-mobile', { ...opsMapa, zoomControl:true }).setView([-5.0892,-42.8019], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapaMobile);
+}
+
+const ocorrencias = JSON.parse('{{ ocorrencias | tojson | safe }}');
+ocorrencias.forEach(o => {
+    L.marker([o.lat, o.lng]).addTo(mapa).bindPopup(`<b>${o.categoria}</b>`);
+    if (mapaMobile) L.marker([o.lat, o.lng]).addTo(mapaMobile).bindPopup(`<b>${o.categoria}</b>`);
+});
+
+let marcador = null, marcadorMobile = null;
+
+function setStatus(msg, tipo) {
+    const cores = {
+        ok:'bg-green-50 text-green-600 border-green-200',
+        erro:'bg-red-50 text-red-600 border-red-200',
+        info:'bg-blue-50 text-blue-600 border-blue-200',
+        aviso:'bg-amber-50 text-amber-600 border-amber-200'
+    };
+    const s = document.getElementById('status-gps');
+    s.innerText = msg;
+    s.className = `text-xs font-medium text-center p-2.5 rounded-xl border ${cores[tipo]}`;
+}
+
+function moverMarcador(lat, lng, label) {
+    marcador ? marcador.setLatLng([lat,lng]).bindPopup(label||'📍').openPopup()
+             : (marcador = L.marker([lat,lng]).addTo(mapa).bindPopup(label||'📍').openPopup());
+
+    if (mapaMobile) {
+        marcadorMobile ? marcadorMobile.setLatLng([lat,lng]).bindPopup(label||'📍').openPopup()
+                       : (marcadorMobile = L.marker([lat,lng]).addTo(mapaMobile).bindPopup(label||'📍').openPopup());
+        mapaMobile.setView([lat,lng], 16);
+    }
+
+    const prev = document.getElementById('preview-endereco');
+    if (prev && label && label !== '📍') prev.innerText = label.replace('📍 ','');
+}
+
+const cacheEnderecos = {};
+let timerDebounce = null;
+
+function formatarEndereco(addr) {
+    const rua    = addr.road || addr.pedestrian || addr.footway || addr.suburb || '';
+    const bairro = addr.suburb || addr.neighbourhood || addr.quarter || '';
+    const cidade = addr.city || addr.town || addr.village || addr.municipality || '';
+    return [rua, bairro, cidade].filter(Boolean).join(', ');
+}
+
+function fecharAutocomplete() {
+    document.getElementById('autocomplete-lista').classList.add('hidden');
+}
+
+function selecionarSugestao(lat, lng, etiqueta) {
+    mapa.setView([lat, lng], 16);
+    moverMarcador(lat, lng, `📍 ${etiqueta}`);
+    document.getElementById('busca-endereco').value = etiqueta;
+    const prev = document.getElementById('preview-endereco');
+    if (prev) prev.innerText = etiqueta;
+    setStatus(`📍 ${etiqueta}`, 'ok');
+    fecharAutocomplete();
+}
+
+async function buscarSugestoes(termo) {
+    if (cacheEnderecos[termo]) return cacheEnderecos[termo];
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(termo)}&limit=5&countrycodes=br&addressdetails=1`;
+    const r = await fetch(url);
+    const d = await r.json();
+    cacheEnderecos[termo] = d;
+    return d;
+}
+
+function renderizarSugestoes(resultados) {
+    const lista = document.getElementById('autocomplete-lista');
+    lista.innerHTML = '';
+    if (!resultados.length) { lista.classList.add('hidden'); return; }
+    resultados.forEach(item => {
+        const etiqueta = formatarEndereco(item.address);
+        if (!etiqueta) return;
+        const li = document.createElement('li');
+        li.className = 'flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-blue-50 text-sm text-gray-700 border-b border-gray-100 last:border-0';
+        li.innerHTML = `<i class="fa-solid fa-location-dot text-xs flex-shrink-0" style="color:#0b438a;"></i><span>${etiqueta}</span>`;
+        li.addEventListener('mousedown', e => {
+            e.preventDefault();
+            selecionarSugestao(parseFloat(item.lat), parseFloat(item.lon), etiqueta);
+        });
+        lista.appendChild(li);
+    });
+    lista.classList.remove('hidden');
+}
+
+document.getElementById('busca-endereco').addEventListener('input', function () {
+    clearTimeout(timerDebounce);
+    const termo = this.value.trim();
+    if (termo.length < 4) { fecharAutocomplete(); return; }
+    setStatus('🔍 Buscando...', 'info');
+    timerDebounce = setTimeout(async () => {
+        try {
+            const resultados = await buscarSugestoes(termo);
+            renderizarSugestoes(resultados);
+            if (!resultados.length) setStatus('❌ Nenhum resultado.', 'erro');
+            else setStatus('📍 Selecione um resultado abaixo', 'info');
+        } catch { setStatus('❌ Erro na busca.', 'erro'); }
+    }, 400);
+});
+
+document.getElementById('busca-endereco').addEventListener('blur', () => {
+    setTimeout(fecharAutocomplete, 150);
+});
+
+document.getElementById('busca-endereco').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); buscarEndereco(); }
+});
+
+async function buscarEndereco() {
+    const termo = document.getElementById('busca-endereco').value.trim();
+    if (!termo) return;
+    setStatus('🔍 Buscando...', 'info');
+    fecharAutocomplete();
+    try {
+        const resultados = await buscarSugestoes(termo);
+        if (!resultados.length) return setStatus('❌ Endereço não encontrado.', 'erro');
+        const item = resultados[0];
+        const etiqueta = formatarEndereco(item.address);
+        selecionarSugestao(parseFloat(item.lat), parseFloat(item.lon), etiqueta);
+    } catch { setStatus('❌ Erro na busca.', 'erro'); }
+}
+
+function usarGPS() {
+    setStatus('📡 Buscando GPS...', 'info');
+    navigator.geolocation.getCurrentPosition(
+        p => {
+            const lat = p.coords.latitude, lng = p.coords.longitude;
+            mapa.setView([lat, lng], 16);
+            moverMarcador(lat, lng, '📍 Você está aqui');
+            setStatus('📍 Localização centralizada!', 'ok');
+        },
+        () => setStatus('❌ GPS indisponível. Busque no campo de endereço.', 'erro')
+    );
+}
+</script>
+{% endblock %}

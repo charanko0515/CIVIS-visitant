@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block titulo %}Perfil{% endblock %}
+{% block breadcrumb %}Perfil{% endblock %}
+{% block main_class %}block{% endblock %}
+
+{% block conteudo %}
+<div class="w-full max-w-3xl mx-auto px-4 py-8">
+
+    <!-- Cabeçalho estilo Instagram -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+
+        <div class="flex items-center gap-6">
+
+            <!-- Avatar -->
+            <div class="w-24 h-24 rounded-full flex items-center justify-center
+                        text-white text-3xl font-extrabold flex-shrink-0"
+                 style="background:#0b438a;">
+                {{ usuario.nome[0].upper() }}
+            </div>
+
+            <!-- Info -->
+            <div class="flex-1">
+
+                <h2 class="text-xl font-extrabold mb-4"
+                    style="color:#0b438a;">
+                    {{ usuario.nome }}
+                </h2>
+
+                <!-- Estatísticas -->
+                <div class="flex gap-8 text-sm mb-4">
+
+                    <div>
+                        <span class="font-extrabold text-lg"
+                              style="color:#0b438a;">
+                            {{ denuncias|length }}
+                        </span>
+                        <p class="text-gray-400">denúncias</p>
+                    </div>
+
+                    <div>
+                        <span class="font-extrabold text-lg"
+                              style="color:#0b438a;">
+                            {{ usuario.data_criacao[:10] }}
+                        </span>
+                        <p class="text-gray-400">membro desde</p>
+                    </div>
+
+                </div>
+
+                <!-- Dados -->
+                <p class="text-sm text-gray-500">{{ usuario.email }}</p>
+                <p class="text-sm text-gray-400">CPF {{ usuario.cpf }}</p>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Título -->
+    <div class="flex items-center gap-2 mb-5">
+        <i class="fa-solid fa-table-cells-large"
+           style="color:#0b438a;"></i>
+        <h3 class="text-sm font-bold uppercase tracking-wide"
+            style="color:#0b438a;">
+            Minhas denúncias
+        </h3>
+    </div>
+
+    <!-- Grid estilo Instagram -->
+    {% if denuncias %}
+    <div class="grid grid-cols-3 gap-2">
+
+        {% for d in denuncias %}
+        <div class="relative aspect-square rounded-xl overflow-hidden
+                    bg-gray-100 group cursor-pointer">
+
+            {% if d.foto_caminho %}
+            <img src="/{{ d.foto_caminho }}"
+                 class="w-full h-full object-cover
+                        group-hover:scale-105 transition duration-300">
+            {% else %}
+            <div class="w-full h-full flex items-center justify-center"
+                 style="background:#dbeafe;">
+                <i class="fa-solid fa-circle-exclamation
+                          text-3xl"
+                   style="color:#0b438a;"></i>
+            </div>
+            {% endif %}
+
+            <!-- Categoria -->
+            <div class="absolute top-2 left-2
+                        text-[10px] font-bold px-2 py-1 rounded-full
+                        bg-white/90"
+                 style="color:#0b438a;">
+                {{ d.categoria }}
+            </div>
+
+            <!-- Overlay -->
+            <div class="absolute inset-0 bg-black/50 opacity-0
+                        group-hover:opacity-100 transition
+                        flex flex-col justify-end p-3">
+
+                <p class="text-white text-xs font-bold mb-1 line-clamp-1">
+                    {{ d.titulo }}
+                    {% if d.anonimo %}<span class="ml-1 text-[10px] bg-gray-600 px-1.5 py-0.5 rounded-full">anônima</span>{% endif %}
+                </p>
+
+                <p class="text-white text-xs line-clamp-2 mb-1">
+                    {{ d.descricao }}
+                </p>
+
+                <div class="flex items-center justify-between">
+                    <span class="text-white text-[11px]">
+                        {{ d.data_registro[8:10] }}/{{ d.data_registro[5:7] }}/{{ d.data_registro[0:4] }}
+                    </span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full
+                        {% if d.status == 'Resolvida' %}bg-green-400 text-white
+                        {% elif d.status == 'Em andamento' %}bg-amber-400 text-white
+                        {% else %}bg-red-400 text-white{% endif %}">
+                        {{ d.status }}
+                    </span>
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+
+    {% else %}
+    <div class="text-center py-12 text-gray-400">
+        <i class="fa-solid fa-box-open text-4xl mb-3"></i>
+        <p>Você ainda não possui denúncias registradas nesta base.</p>
+    </div>
+    {% endif %}
+    
+</div>
+{% endblock %}

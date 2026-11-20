@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Visualização Bloqueada{% endblock %}
+{% block breadcrumb %}Confirmação{% endblock %}
+
+{% block conteudo %}
+<div class="w-full flex justify-center px-4 py-8">
+    <div class="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 max-w-md w-full text-center">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+             style="background:#fef3c7;">
+            <i class="fa-solid fa-lock text-2xl" style="color:#d97706;"></i>
+        </div>
+
+        <h2 class="text-xl font-extrabold mb-2" style="color:#0b438a;">
+            Função desabilitada
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-6">
+            O envio de novas denúncias e uploads está bloqueado nesta versão somente visualização.
+        </p>
+
+        <a href="/feed"
+           class="block w-full text-white font-bold py-3 rounded-xl hover:opacity-90 transition"
+           style="background:#0b438a;">
+            Voltar ao feed
+        </a>
+    </div>
+</div>
+{% endblock %}

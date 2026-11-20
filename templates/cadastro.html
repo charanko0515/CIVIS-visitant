@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Cadastro Desabilitado{% endblock %}
+{% block breadcrumb %}Criar conta{% endblock %}
+
+{% block conteudo %}
+<div class="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 w-full max-w-sm text-center">
+    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background:#fef3c7;color:#d97706;">
+        <i class="fa-solid fa-lock text-xl"></i>
+    </div>
+    <h2 class="text-base font-extrabold mb-2" style="color:#0b438a;">Cadastro desabilitado</h2>
+    <p class="text-sm text-gray-500 mb-6">
+        Esta versão do CIVIS funciona apenas para visualização com os dados já existentes. Não é possível criar novas contas.
+    </p>
+    <a href="/login"
+       style="background:#0b438a;"
+       class="inline-flex items-center justify-center gap-2 w-full text-white font-bold py-3 rounded-xl hover:opacity-90 transition">
+        Ir para o login
+    </a>
+</div>
+{% endblock %}
