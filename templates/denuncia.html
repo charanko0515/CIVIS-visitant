@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block titulo %}Mapa de Ocorrências{% endblock %}
-{% block breadcrumb %}Mapa de Ocorrências{% endblock %}
+{% block titulo %}Nova Denúncia{% endblock %}
+{% block breadcrumb %}Nova Denúncia{% endblock %}
 {% block main_class %}block{% endblock %}
 
 {% block head %}
@@ -12,13 +12,46 @@
         border: 1.5px solid #dde3f0; border-radius: 10px;
         font-size: 13px; color: #1e2d5a; outline: none;
         transition: border-color .2s, box-shadow .2s;
-        background: #f8fafc;
+        background: #fff;
     }
+    .input-field:focus { border-color: #0b438a; box-shadow: 0 0 0 3px rgba(11,67,138,.08); }
     .input-field::placeholder { color: #b0bcd4; }
     textarea.input-field { resize: none; }
 
+    /* Steps clicáveis */
+    .step-dot {
+        width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 800; flex-shrink: 0;
+        transition: .2s; cursor: pointer; border: none;
+    }
+    .step-dot.ativo { background: #0b438a; color: #fff; }
+    .step-dot.inativo { background: #e8eef8; color: #64748b; }
+    .step-dot.concluido { background: #22c55e; color: #fff; }
+    .step-linha { flex: 1; height: 2px; background: #e8eef8; margin: 0 6px; border-radius: 2px; transition: .3s; }
+    .step-linha.ativa { background: #0b438a; }
+
+    /* Painel de step */
+    .step-painel { display: none; animation: fadeUp .35s ease both; }
+    .step-painel.visivel { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
     /* Mapa */
     #mapa { height: 100%; width: 100%; border-radius: 16px; }
+
+    /* Zona de upload bloqueada */
+    #zona-upload {
+        border: 2px dashed #cbd5e1; background: #f8fafc;
+        border-radius: 12px; padding: 16px;
+        cursor: not-allowed; opacity: 0.65;
+    }
+
+    /* Toggle anônimo */
+    #toggle-anonimo {
+        border: 2px solid #dde3f0; background: #f8faff;
+        border-radius: 12px; padding: 10px 14px;
+        cursor: pointer; transition: .2s;
+    }
 </style>
 {% endblock %}
 
@@ -27,69 +60,197 @@
 
     <!-- Cabeçalho -->
     <div class="mb-6">
-        <h1 class="text-2xl font-extrabold" style="color:#0b438a;">Mapa de Ocorrências</h1>
-        <p class="text-sm text-gray-400 mt-1">Visualização dos registros existentes — envio de novas denúncias e uploads desabilitado</p>
+        <h1 class="text-2xl font-extrabold" style="color:#0b438a;">Nova Denúncia</h1>
+        <p class="text-sm text-gray-400 mt-1">Explore todas as etapas do formulário e o mapa — o envio final está desabilitado</p>
     </div>
 
     <div class="flex flex-col lg:flex-row gap-6" style="align-items:stretch;">
 
-        <!-- ═══ COLUNA ESQUERDA: Painel bloqueado para novos registros ═══ -->
+        <!-- ═══ COLUNA ESQUERDA: Formulário com todas as 3 abas acessíveis ═══ -->
         <div class="w-full lg:w-5/12 flex flex-col">
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 h-full">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5 h-full">
 
-                <div class="flex items-start gap-3 p-4 rounded-xl border" style="background:#fffbeb; border-color:#fde68a;">
-                    <i class="fa-solid fa-lock text-amber-600 mt-0.5"></i>
-                    <div>
-                        <p class="text-sm font-bold text-amber-800">Registro bloqueado (modo visualização)</p>
-                        <p class="text-xs text-amber-700 mt-0.5">
-                            As funções de criar denúncias e fazer upload de arquivos/fotos estão desabilitadas. Você pode consultar as ocorrências no mapa e buscar endereços para inspeção.
-                        </p>
-                    </div>
+                <!-- Aviso discreto de modo visualização -->
+                <div class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-xs font-semibold"
+                     style="background:#fffbeb; border-color:#fde68a; color:#92400e;">
+                    <i class="fa-solid fa-eye text-amber-600"></i>
+                    <span>Modo demonstração: navegue livremente pelas 3 etapas. O envio e upload estão desabilitados.</span>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold mb-1.5 uppercase tracking-wide" style="color:#6b7280;">Buscar endereço no mapa</label>
-                    <div class="relative">
-                        <div class="flex gap-2">
-                            <div class="relative flex-1">
-                                <i class="fa-solid fa-location-dot absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
-                                <input type="text" id="busca-endereco" class="input-field pl-8" placeholder="Rua das Flores, Teresina…" autocomplete="off">
+                <!-- Indicador de steps (clicáveis) -->
+                <div class="flex items-center mb-1">
+                    <button type="button" onclick="irStep(1)" class="step-dot ativo" id="dot-1" title="Ir para Identificação">1</button>
+                    <div class="step-linha" id="linha-1"></div>
+                    <button type="button" onclick="irStep(2)" class="step-dot inativo" id="dot-2" title="Ir para Localização">2</button>
+                    <div class="step-linha" id="linha-2"></div>
+                    <button type="button" onclick="irStep(3)" class="step-dot inativo" id="dot-3" title="Ir para Detalhes">3</button>
+                </div>
+                <div class="flex justify-between text-[10px] font-semibold text-gray-400 -mt-3 px-0.5">
+                    <button type="button" onclick="irStep(1)" class="hover:text-[#0b438a]">Identificação</button>
+                    <button type="button" onclick="irStep(2)" class="text-center hover:text-[#0b438a]">Localização</button>
+                    <button type="button" onclick="irStep(3)" class="text-right hover:text-[#0b438a]">Detalhes</button>
+                </div>
+
+                <form id="form-denuncia" onsubmit="event.preventDefault(); avisarBloqueio();">
+                    <input type="hidden" id="lat" name="latitude">
+                    <input type="hidden" id="lng" name="longitude">
+
+                    <!-- ── STEP 1: Identificação ── -->
+                    <div class="step-painel visivel" id="step-1">
+                        <div class="flex flex-col gap-4">
+
+                            <!-- Título -->
+                            <div>
+                                <label class="block text-xs font-bold mb-1.5 uppercase tracking-wide" style="color:#6b7280;">Título</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-pen absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
+                                    <input type="text" name="titulo" id="titulo" class="input-field pl-8" placeholder="Ex: Buraco perigoso na Av. Principal">
+                                </div>
                             </div>
-                            <button type="button" onclick="buscarEndereco()"
-                                class="px-3 py-2 rounded-xl font-bold text-white text-sm flex items-center gap-1.5 hover:opacity-90 transition flex-shrink-0"
+
+                            <!-- Categoria — chips visuais -->
+                            <div>
+                                <label class="block text-xs font-bold mb-2 uppercase tracking-wide" style="color:#6b7280;">Categoria</label>
+                                <input type="hidden" name="categoria" id="categoria-valor">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" onclick="selecionarCategoria(this,'Iluminação')"
+                                        class="chip-cat flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-blue-300 transition">
+                                        <span class="text-base">💡</span> Iluminação
+                                    </button>
+                                    <button type="button" onclick="selecionarCategoria(this,'Saneamento')"
+                                        class="chip-cat flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-blue-300 transition">
+                                        <span class="text-base">🚧</span> Saneamento
+                                    </button>
+                                    <button type="button" onclick="selecionarCategoria(this,'Vias')"
+                                        class="chip-cat flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-blue-300 transition">
+                                        <span class="text-base">🕳️</span> Buraco na Via
+                                    </button>
+                                    <button type="button" onclick="selecionarCategoria(this,'Lixo')"
+                                        class="chip-cat flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-blue-300 transition">
+                                        <span class="text-base">🗑️</span> Acúmulo de Lixo
+                                    </button>
+                                    <button type="button" onclick="selecionarCategoria(this,'Vandalismo')"
+                                        class="chip-cat flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-blue-300 transition">
+                                        <span class="text-base">🎨</span> Vandalismo
+                                    </button>
+                                    <button type="button" onclick="selecionarCategoria(this,'Outros')"
+                                        class="chip-cat flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-500 hover:border-blue-300 transition">
+                                        <span class="text-base">➕</span> Outros
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="button" onclick="irStep(2)"
+                                class="w-full text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition mt-2"
                                 style="background:#0b438a;">
-                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                Próximo <i class="fa-solid fa-arrow-right text-xs"></i>
                             </button>
                         </div>
-                        <ul id="autocomplete-lista" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden" style="max-height:200px;overflow-y:auto;"></ul>
                     </div>
-                </div>
 
-                <button type="button" onclick="usarGPS()"
-                    class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition"
-                    style="border:1.5px solid #0b438a; color:#0b438a;">
-                    <i class="fa-solid fa-location-crosshairs"></i> Centralizar na minha localização
-                </button>
+                    <!-- ── STEP 2: Localização ── -->
+                    <div class="step-painel" id="step-2">
+                        <div class="flex flex-col gap-4">
 
-                <div id="status-gps" class="text-xs font-medium text-center bg-blue-50 text-blue-700 p-2.5 rounded-xl border border-blue-200">
-                    🗺️ {{ ocorrencias|length }} ocorrência(s) exibida(s) no mapa
-                </div>
+                            <div>
+                                <label class="block text-xs font-bold mb-1.5 uppercase tracking-wide" style="color:#6b7280;">Endereço</label>
+                                <div class="relative">
+                                    <div class="flex gap-2">
+                                        <div class="relative flex-1">
+                                            <i class="fa-solid fa-location-dot absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
+                                            <input type="text" id="busca-endereco" class="input-field pl-8" placeholder="Rua das Flores, Teresina…" autocomplete="off">
+                                        </div>
+                                        <button type="button" onclick="buscarEndereco()"
+                                            class="px-3 py-2 rounded-xl font-bold text-white text-sm flex items-center gap-1.5 hover:opacity-90 transition flex-shrink-0"
+                                            style="background:#0b438a;">
+                                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                        </button>
+                                    </div>
+                                    <ul id="autocomplete-lista" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden" style="max-height:200px;overflow-y:auto;"></ul>
+                                </div>
+                            </div>
 
-                <fieldset disabled class="opacity-50 pointer-events-none flex flex-col gap-3 mt-1">
-                    <div>
-                        <label class="block text-xs font-bold mb-1 uppercase tracking-wide text-gray-400">Título (desabilitado)</label>
-                        <input type="text" class="input-field" placeholder="Bloqueado nesta versão">
+                            <button type="button" onclick="usarGPS()"
+                                class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition"
+                                style="border:1.5px solid #0b438a; color:#0b438a;">
+                                <i class="fa-solid fa-location-crosshairs"></i> Usar minha localização
+                            </button>
+
+                            <div id="status-gps" class="text-xs font-medium text-center bg-amber-50 text-amber-600 p-2.5 rounded-xl border border-amber-200">
+                                📡 Clique no mapa, busque um endereço ou use o GPS
+                            </div>
+
+                            <div class="flex gap-3 mt-1">
+                                <button type="button" onclick="irStep(1)"
+                                    class="flex-1 py-2.5 rounded-xl font-bold text-sm transition"
+                                    style="border:1.5px solid #dde3f0; color:#6b7280;">
+                                    <i class="fa-solid fa-arrow-left text-xs"></i> Voltar
+                                </button>
+                                <button type="button" onclick="irStep(3)"
+                                    class="flex-1 text-white font-bold py-2.5 rounded-xl text-sm hover:opacity-90 transition"
+                                    style="background:#0b438a;">
+                                    Próximo <i class="fa-solid fa-arrow-right text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1 uppercase tracking-wide text-gray-400">Foto da ocorrência (desabilitado)</label>
-                        <input type="file" class="input-field" disabled>
-                    </div>
-                    <button type="button" disabled
-                        class="w-full text-white font-bold py-2.5 rounded-xl text-sm bg-gray-400 cursor-not-allowed">
-                        Envio desabilitado
-                    </button>
-                </fieldset>
 
+                    <!-- ── STEP 3: Detalhes ── -->
+                    <div class="step-painel" id="step-3">
+                        <div class="flex flex-col gap-4">
+
+                            <!-- Upload desabilitado visualmente -->
+                            <div>
+                                <label class="block text-xs font-bold mb-1.5 uppercase tracking-wide" style="color:#6b7280;">Foto da ocorrência</label>
+                                <div id="zona-upload" class="flex items-center gap-3 w-full">
+                                    <i class="fa-solid fa-lock text-2xl text-gray-400"></i>
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-500">Upload de fotos desabilitado</p>
+                                        <p class="text-xs text-gray-400">Esta versão exibe apenas os registros já salvos</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Descrição -->
+                            <div>
+                                <label class="block text-xs font-bold mb-1.5 uppercase tracking-wide" style="color:#6b7280;">Descrição</label>
+                                <textarea name="descricao" rows="3" class="input-field" placeholder="Descreva os detalhes da ocorrência..."></textarea>
+                            </div>
+
+                            <!-- Toggle anônimo (visual) -->
+                            <label id="toggle-anonimo" class="flex items-center gap-3 select-none">
+                                <div class="relative flex-shrink-0">
+                                    <input type="checkbox" name="anonimo" id="check-anonimo" class="sr-only" onchange="atualizarAnonimo(this)">
+                                    <div id="track-anonimo" class="w-10 h-5 rounded-full transition-colors duration-200" style="background:#dde3f0;"></div>
+                                    <div id="thumb-anonimo" class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-bold" id="label-anonimo" style="color:#1e2d5a;">Enviar como anônimo</p>
+                                    <p class="text-xs text-gray-400" id="sub-anonimo">Seu nome não aparecerá na publicação</p>
+                                </div>
+                                <i class="fa-solid fa-user-secret" id="icone-anonimo" style="color:#a0aec0;"></i>
+                            </label>
+
+                            <div id="aviso-envio-bloqueado" class="hidden text-xs font-semibold text-center px-3 py-2.5 rounded-xl border"
+                                 style="background:#fef2f2; border-color:#fecaca; color:#dc2626;">
+                                O envio de novas denúncias está bloqueado nesta versão somente visualização.
+                            </div>
+
+                            <div class="flex gap-3 mt-1">
+                                <button type="button" onclick="irStep(2)"
+                                    class="flex-1 py-2.5 rounded-xl font-bold text-sm transition"
+                                    style="border:1.5px solid #dde3f0; color:#6b7280;">
+                                    <i class="fa-solid fa-arrow-left text-xs"></i> Voltar
+                                </button>
+                                <button type="submit"
+                                    class="flex-1 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 bg-gray-400 cursor-not-allowed">
+                                    <i class="fa-solid fa-lock text-xs"></i> Envio desabilitado
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
             </div>
         </div>
 
@@ -127,7 +288,7 @@
 
                     <div style="background:#fff;padding:8px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e8eef8;flex-shrink:0;">
                         <i class="fa-solid fa-bars" style="color:#0b438a;font-size:13px;"></i>
-                        <span style="flex-grow:1;font-size:12px;color:#a0aec0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="preview-endereco">Explore as ocorrências registradas no mapa…</span>
+                        <span style="flex-grow:1;font-size:12px;color:#a0aec0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="preview-endereco">Marque o local no mapa para visualizar…</span>
                         <i class="fa-solid fa-magnifying-glass" style="color:#0b438a;font-size:12px;"></i>
                     </div>
 
@@ -137,7 +298,7 @@
             </div>
 
             <p class="text-xs text-gray-400 mt-4 text-center">
-                <i class="fa-solid fa-eye mr-1"></i> Clique nos marcadores para ver a categoria da ocorrência
+                <i class="fa-solid fa-hand-pointer mr-1"></i> Clique no mapa para testar a seleção de local ou veja os pontos já registrados
             </p>
         </div>
 
@@ -148,10 +309,13 @@
 
     </div>
 </div>
+
+<div id="mapa-data" data-ocorrencias='{{ ocorrencias | tojson }}' class="hidden"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ── Relógio do mockup ──
 function atualizarRelogio() {
     const a = new Date();
     document.getElementById('relogio').innerText =
@@ -160,6 +324,7 @@ function atualizarRelogio() {
 atualizarRelogio();
 setInterval(atualizarRelogio, 1000);
 
+// ── Mapas ──
 const limitsBrasil = L.latLngBounds(L.latLng(-33.75,-73.99), L.latLng(5.27,-28.84));
 const opsMapa = { zoomControl:false, attributionControl:false, maxBounds:limitsBrasil, maxBoundsViscosity:1.0, minZoom:4 };
 
@@ -174,7 +339,7 @@ if (elMobile) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapaMobile);
 }
 
-const ocorrencias = JSON.parse('{{ ocorrencias | tojson | safe }}');
+const ocorrencias = JSON.parse(document.getElementById('mapa-data').dataset.ocorrencias || '[]');
 ocorrencias.forEach(o => {
     L.marker([o.lat, o.lng]).addTo(mapa).bindPopup(`<b>${o.categoria}</b>`);
     if (mapaMobile) L.marker([o.lat, o.lng]).addTo(mapaMobile).bindPopup(`<b>${o.categoria}</b>`);
@@ -195,6 +360,9 @@ function setStatus(msg, tipo) {
 }
 
 function moverMarcador(lat, lng, label) {
+    document.getElementById('lat').value = lat.toFixed(6);
+    document.getElementById('lng').value = lng.toFixed(6);
+
     marcador ? marcador.setLatLng([lat,lng]).bindPopup(label||'📍').openPopup()
              : (marcador = L.marker([lat,lng]).addTo(mapa).bindPopup(label||'📍').openPopup());
 
@@ -208,6 +376,32 @@ function moverMarcador(lat, lng, label) {
     if (prev && label && label !== '📍') prev.innerText = label.replace('📍 ','');
 }
 
+function clicarMapa(e) {
+    const { lat, lng } = e.latlng;
+    moverMarcador(lat, lng, '📍 Local selecionado');
+    mapa.setView(e.latlng);
+    setStatus('🔍 Buscando endereço...', 'info');
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`)
+        .then(r => r.json())
+        .then(d => {
+            const addr = d.address;
+            const rua    = addr.road || addr.pedestrian || addr.footway || '';
+            const bairro = addr.suburb || addr.neighbourhood || addr.quarter || '';
+            const cidade = addr.city || addr.town || addr.village || addr.municipality || '';
+            const partes = [rua, bairro, cidade].filter(Boolean);
+            const etiqueta = partes.join(', ');
+            document.getElementById('busca-endereco').value = etiqueta;
+            const prev = document.getElementById('preview-endereco');
+            if (prev) prev.innerText = etiqueta;
+            setStatus(`📍 ${etiqueta}`, 'ok');
+        })
+        .catch(() => setStatus('❌ Erro ao buscar endereço.', 'erro'));
+}
+
+mapa.on('click', clicarMapa);
+if (mapaMobile) mapaMobile.on('click', clicarMapa);
+
+// ── Autocomplete ──
 const cacheEnderecos = {};
 let timerDebounce = null;
 
@@ -224,7 +418,7 @@ function fecharAutocomplete() {
 
 function selecionarSugestao(lat, lng, etiqueta) {
     mapa.setView([lat, lng], 16);
-    moverMarcador(lat, lng, `📍 ${etiqueta}`);
+    moverMarcador(lat, lng, '📍 Local selecionado');
     document.getElementById('busca-endereco').value = etiqueta;
     const prev = document.getElementById('preview-endereco');
     if (prev) prev.innerText = etiqueta;
@@ -304,10 +498,74 @@ function usarGPS() {
             const lat = p.coords.latitude, lng = p.coords.longitude;
             mapa.setView([lat, lng], 16);
             moverMarcador(lat, lng, '📍 Você está aqui');
-            setStatus('📍 Localização centralizada!', 'ok');
+            setStatus('📍 Localização capturada!', 'ok');
         },
-        () => setStatus('❌ GPS indisponível. Busque no campo de endereço.', 'erro')
+        () => setStatus('❌ GPS indisponível. Busque ou clique no mapa.', 'erro')
     );
+}
+
+// ── Steps (navegação livre entre 1, 2 e 3) ──
+let stepAtual = 1;
+
+function irStep(n) {
+    document.getElementById(`step-${stepAtual}`).classList.remove('visivel');
+    stepAtual = n;
+    document.getElementById(`step-${n}`).classList.add('visivel');
+    atualizarDots();
+}
+
+function atualizarDots() {
+    [1,2,3].forEach(i => {
+        const dot   = document.getElementById(`dot-${i}`);
+        const linha = document.getElementById(`linha-${i}`);
+        dot.className = 'step-dot ' + (i < stepAtual ? 'concluido' : i === stepAtual ? 'ativo' : 'inativo');
+        if (linha) linha.className = 'step-linha' + (i < stepAtual ? ' ativa' : '');
+    });
+}
+
+// ── Categorias (chips) ──
+function selecionarCategoria(btn, valor) {
+    document.querySelectorAll('.chip-cat').forEach(c => {
+        c.style.borderColor = '';
+        c.style.background  = '';
+        c.style.color       = '';
+    });
+    btn.style.borderColor = '#0b438a';
+    btn.style.background  = '#eef4ff';
+    btn.style.color       = '#0b438a';
+    document.getElementById('categoria-valor').value = valor;
+}
+
+// ── Toggle anônimo ──
+function atualizarAnonimo(cb) {
+    const track  = document.getElementById('track-anonimo');
+    const thumb  = document.getElementById('thumb-anonimo');
+    const label  = document.getElementById('label-anonimo');
+    const sub    = document.getElementById('sub-anonimo');
+    const icone  = document.getElementById('icone-anonimo');
+    const toggle = document.getElementById('toggle-anonimo');
+    if (cb.checked) {
+        track.style.background   = '#0b438a';
+        thumb.style.transform    = 'translateX(20px)';
+        label.textContent        = 'Denúncia anônima ativada';
+        sub.textContent          = 'Seu nome não será exibido';
+        icone.style.color        = '#0b438a';
+        toggle.style.borderColor = '#0b438a';
+        toggle.style.background  = '#eef4ff';
+    } else {
+        track.style.background   = '#dde3f0';
+        thumb.style.transform    = 'translateX(0)';
+        label.textContent        = 'Enviar como anônimo';
+        sub.textContent          = 'Seu nome não aparecerá na publicação';
+        icone.style.color        = '#a0aec0';
+        toggle.style.borderColor = '#dde3f0';
+        toggle.style.background  = '#f8faff';
+    }
+}
+
+// ── Bloqueio visual ao tentar enviar ──
+function avisarBloqueio() {
+    document.getElementById('aviso-envio-bloqueado').classList.remove('hidden');
 }
 </script>
 {% endblock %}
