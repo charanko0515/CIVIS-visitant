@@ -74,7 +74,8 @@
                     bg-gray-100 group cursor-pointer">
 
             {% if d.foto_caminho %}
-            <img src="/{{ d.foto_caminho }}"
+            {% set nome_img = d.foto_caminho.replace('\\', '/').split('/')[-1] %}
+            <img src="/imagens/{{ nome_img }}"
                  class="w-full h-full object-cover
                         group-hover:scale-105 transition duration-300">
             {% else %}

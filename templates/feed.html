@@ -45,8 +45,9 @@
 
         <!-- Foto -->
         {% if d.foto_caminho %}
+        {% set nome_img = d.foto_caminho.replace('\\', '/').split('/')[-1] %}
         <div class="w-full overflow-hidden flex-shrink-0 aspect-square">
-            <img src="/{{ d.foto_caminho }}"
+            <img src="/imagens/{{ nome_img }}"
                  class="w-full h-full object-cover"
                  alt="{{ d.titulo }}">
         </div>
@@ -155,7 +156,7 @@
 
 <!-- Dados JSON injetados com segurança via atributo data -->
 <div id="feed-data"
-     data-denuncias='[{% for d in denuncias %}{"id":{{ d.id }},"titulo":{{ d.titulo | tojson }},"descricao":{{ d.descricao | tojson }},"categoria":{{ d.categoria | tojson }},"status":{{ d.status | tojson }},"data":"{{ d.data_registro[8:10] }}/{{ d.data_registro[5:7] }}/{{ d.data_registro[0:4] }}","foto":{% if d.foto_caminho %}{{ d.foto_caminho | tojson }}{% else %}null{% endif %},"lat":{{ d.latitude }},"lng":{{ d.longitude }},"ups":{{ d.total_ups }},"upAtivo":{{ "true" if d.id in ups_dados else "false" }},"anonimo":{{ "true" if d.anonimo else "false" }},"autor":{{ (d.nome_usuario or "Usuário") | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]'
+     data-denuncias='[{% for d in denuncias %}{% set nome_img = d.foto_caminho.replace("\\", "/").split("/")[-1] if d.foto_caminho else "" %}{"id":{{ d.id }},"titulo":{{ d.titulo | tojson }},"descricao":{{ d.descricao | tojson }},"categoria":{{ d.categoria | tojson }},"status":{{ d.status | tojson }},"data":"{{ d.data_registro[8:10] }}/{{ d.data_registro[5:7] }}/{{ d.data_registro[0:4] }}","foto":{% if nome_img %}{{ ("/imagens/" ~ nome_img) | tojson }}{% else %}null{% endif %},"lat":{{ d.latitude }},"lng":{{ d.longitude }},"ups":{{ d.total_ups }},"upAtivo":{{ "true" if d.id in ups_dados else "false" }},"anonimo":{{ "true" if d.anonimo else "false" }},"autor":{{ (d.nome_usuario or "Usuário") | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]'
      class="hidden"></div>
 
 <script>
@@ -213,7 +214,7 @@ async function abrirCard(idx) {
 
     const fotoHtml = d.foto
         ? `<div class="w-full overflow-hidden aspect-[4/3]">
-               <img src="/${d.foto}" class="w-full h-full object-cover">
+               <img src="${d.foto}" class="w-full h-full object-cover">
            </div>`
         : `<div class="w-full flex flex-col items-center justify-center gap-2 aspect-[4/3]" style="background:linear-gradient(135deg,#e8f0fb,#dbeafe);">
                <i class="fa-solid ${catIcon} text-5xl" style="color:#0b438a; opacity:0.25;"></i>

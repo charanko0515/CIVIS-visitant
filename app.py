@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, session as sessao, jsonify, flash
+from flask import Flask, request, render_template, redirect, session as sessao, jsonify, flash, send_from_directory
 import os
 
 import adm_db as db
@@ -8,8 +8,8 @@ app.secret_key = "civis_chave_secreta"
 
 MODO_SOMENTE_LEITURA = True
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+IMAGENS_FOLDER = os.path.join(os.path.dirname(__file__), "imagens")
+os.makedirs(IMAGENS_FOLDER, exist_ok=True)
 
 
 @app.context_processor
@@ -63,6 +63,11 @@ def perfil():
         sessao.clear()
         return redirect("/login")
     return render_template("perfil.html", usuario=usuario, denuncias=denuncias)
+
+@app.route("/imagens/<path:filename>")
+def servir_imagem_denuncia(filename):
+    nome_arquivo = os.path.basename(filename)
+    return send_from_directory(IMAGENS_FOLDER, nome_arquivo)
 
 
 # =========================
